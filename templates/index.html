@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Giornate{% endblock %}
+{% block content %}
+<div class="page-title">Le tue <span class="accent">Giornate</span></div>
+<div class="page-subtitle">// inserisci i tuoi pronostici prima della chiusura</div>
+
+{% if not giornate %}
+  <div class="card" style="text-align:center; padding: 3rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">⚽</div>
+    <div style="font-family: var(--font-display); font-size:1.3rem; letter-spacing:2px; color:#555;">
+      Nessuna giornata aperta al momento
+    </div>
+    <div style="font-size:0.85rem; color:#444; margin-top:0.5rem;">Torna presto!</div>
+  </div>
+{% else %}
+  {% for g in giornate %}
+  <a href="{{ url_for('giornata', gid=g.id) }}" class="giornata-card" style="display:flex;">
+    <div>
+      <div class="nome">{{ g.nome }}</div>
+      <div class="data">📅 {{ g.data }}</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <span class="stato-badge stato-aperta">Aperta</span>
+      <span style="color: var(--verde); font-size:1.2rem;">→</span>
+    </div>
+  </a>
+  {% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ giornata.nome }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.3rem;">
+  <a href="{{ url_for('index') }}" style="color:#555; font-size:0.8rem; font-family:var(--font-mono);">← Giornate</a>
+</div>
+<div class="page-title">{{ giornata.nome }}</div>
+<div class="page-subtitle">// 📅 {{ giornata.data }} — scegli 1 (casa), X (pareggio), 2 (ospite)</div>
+
+{# gia_salvato viene passato direttamente dal backend #}
+
+{% if not partite %}
+  <div class="card" style="text-align:center; padding: 2rem;">
+    <div style="color:#555;">Nessuna partita in questa giornata.</div>
+  </div>
+{% else %}
+
+{% if gia_salvato %}
+<div style="background:rgba(255,214,0,0.08); border:1px solid rgba(255,214,0,0.3); border-left: 4px solid var(--oro); border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.8rem;">
+  <span style="font-size:1.3rem;">🔒</span>
+  <div>
+    <div style="font-weight:600; color:var(--oro); font-size:0.9rem;">Pronostico già inviato</div>
+    <div style="font-size:0.82rem; color:#999; margin-top:2px;">Hai già salvato i tuoi pronostici per questa giornata. Non è più possibile modificarli.</div>
+  </div>
+</div>
+{% else %}
+<div style="background:rgba(0,230,118,0.06); border:1px solid rgba(0,230,118,0.2); border-left: 4px solid var(--verde); border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.8rem;">
+  <span style="font-size:1.3rem;">⚠️</span>
+  <div>
+    <div style="font-weight:600; color:var(--verde); font-size:0.9rem;">Attenzione — operazione irreversibile</div>
+    <div style="font-size:0.82rem; color:#999; margin-top:2px;">Una volta salvati, i pronostici non potranno più essere modificati. Scegli con cura prima di confermare.</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">⚽ Partite</div>
+
+  <div id="partite-list">
+  {% for p in partite %}
+  <div class="partita-row" data-id="{{ p.id }}">
+    <div class="vs-box">
+      <span class="squadra">{{ p.squadra_casa }}</span>
+      <span class="vs">VS</span>
+      <span class="squadra">{{ p.squadra_ospite }}</span>
+    </div>
+    <div class="pronostico-btns">
+      {% if gia_salvato %}
+        {# Mostra il pronostico salvato come solo lettura #}
+        <button class="btn-pron {% if miei.get(p.id) == '1' %}active-1{% endif %}" disabled>1</button>
+        <button class="btn-pron {% if miei.get(p.id) == 'X' %}active-X{% endif %}" disabled>X</button>
+        <button class="btn-pron {% if miei.get(p.id) == '2' %}active-2{% endif %}" disabled>2</button>
+      {% else %}
+        <button class="btn-pron" data-val="1" data-pid="{{ p.id }}" onclick="seleziona(this)">1</button>
+        <button class="btn-pron" data-val="X" data-pid="{{ p.id }}" onclick="seleziona(this)">X</button>
+        <button class="btn-pron" data-val="2" data-pid="{{ p.id }}" onclick="seleziona(this)">2</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+
+  {% if not gia_salvato %}
+  <div style="margin-top:1.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="salva()" id="btn-salva">
+      💾 Salva Pronostici
+    </button>
+    <span id="msg-salva" style="font-size:0.85rem; opacity:0; transition:opacity 0.3s;"></span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<style>
+.btn-pron:disabled { cursor: not-allowed; opacity: 0.5; }
+.btn-pron:disabled.active-1 { opacity: 1; }
+.btn-pron:disabled.active-X { opacity: 1; }
+.btn-pron:disabled.active-2 { opacity: 1; }
+</style>
+
+<script>
+const GID = {{ giornata.id }};
+const scelte = {};
+
+function seleziona(btn) {
+  const pid = parseInt(btn.dataset.pid);
+  const val = btn.dataset.val;
+  btn.parentElement.querySelectorAll('.btn-pron').forEach(b => {
+    b.className = 'btn-pron';
+  });
+  if (scelte[pid] === val) {
+    delete scelte[pid];
+  } else {
+    scelte[pid] = val;
+    btn.classList.add('active-' + val);
+  }
+}
+
+async function salva() {
+  // Verifica che tutti i pronostici siano selezionati
+  const totalePartite = document.querySelectorAll('.partita-row').length;
+  if (Object.keys(scelte).length < totalePartite) {
+    const msg = document.getElementById('msg-salva');
+    msg.style.color = 'var(--oro)';
+    msg.textContent = '⚠ Seleziona un pronostico per ogni partita';
+    msg.style.opacity = '1';
+    setTimeout(() => msg.style.opacity = '0', 3000);
+    return;
+  }
+  if (!confirm('Sei sicuro? Una volta salvati i pronostici non potranno più essere modificati.')) return;
+
+  const btn = document.getElementById('btn-salva');
+  const msg = document.getElementById('msg-salva');
+  btn.disabled = true;
+  btn.textContent = '⏳ Salvataggio...';
+  try {
+    const res = await fetch('/salva_pronostici', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ giornata_id: GID, pronostici: scelte })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      location.reload();
+    } else {
+      msg.style.color = 'var(--rosso)';
+      msg.textContent = '✗ ' + (data.msg || 'Errore');
+      msg.style.opacity = '1';
+      btn.disabled = false;
+      btn.textContent = '💾 Salva Pronostici';
+    }
+  } catch(e) {
+    msg.style.color = 'var(--rosso)';
+    msg.textContent = '✗ Errore di rete';
+    msg.style.opacity = '1';
+    btn.disabled = false;
+    btn.textContent = '💾 Salva Pronostici';
+  }
+}
+</script>
+{% endblock %}

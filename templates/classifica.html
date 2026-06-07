@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Classifica{% endblock %}
+{% block content %}
+<div class="page-title">🏆 <span class="accent">Classifica</span></div>
+<div class="page-subtitle">// punteggio totale su tutte le giornate</div>
+
+<div class="card">
+  <div class="card-header">Classifica Generale</div>
+  {% if not rows %}
+    <div style="text-align:center; color:#555; padding:2rem;">Nessun dato disponibile</div>
+  {% else %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th style="width:3rem;">#</th>
+        <th>Giocatore</th>
+        <th>Giornate</th>
+        <th>Punti</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>
+        <span class="rank-num {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% endif %}">
+          {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+        </span>
+      </td>
+      <td style="font-weight:600; color:var(--bianco);">{{ r.username }}</td>
+      <td style="color:#888; font-family:var(--font-mono); font-size:0.85rem;">{{ r.giornate }}</td>
+      <td>
+        <span class="punti-badge" {% if loop.index == 1 %}style="border-color:var(--oro); color:var(--oro);"{% endif %}>
+          {{ r.totale }} pt
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
