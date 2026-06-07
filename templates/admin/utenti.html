@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Utenti{% endblock %}
+{% block content %}
+<div class="page-title">👥 <span class="accent">Utenti</span></div>
+<div class="page-subtitle">// utenti registrati sulla piattaforma</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if not utenti %}
+    <div style="text-align:center; color:#555; padding:2rem;">Nessun utente registrato.</div>
+  {% else %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Username</th>
+        <th>Registrato</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in utenti %}
+    <tr>
+      <td style="color:#555; font-family:var(--font-mono); font-size:0.85rem;">{{ u.id }}</td>
+      <td style="font-weight:600; color:var(--bianco);">{{ u.username }}</td>
+      <td style="font-family:var(--font-mono); font-size:0.8rem; color:#888;">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('elimina_utente', uid=u.id) }}"
+              onsubmit="return confirm('Eliminare {{ u.username }} e tutti i suoi dati?')">
+          <button type="submit" class="btn btn-danger btn-sm">🗑 Elimina</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

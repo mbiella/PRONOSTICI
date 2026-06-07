@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Risultati — {{ giornata.nome }}{% endblock %}
+{% block content %}
+<div style="margin-bottom:1rem;"><a href="{{ url_for('admin_dashboard') }}" style="color:#555; font-size:0.8rem; font-family:var(--font-mono);">← Dashboard</a></div>
+<div class="page-title">Risultati — <span class="accent">{{ giornata.nome }}</span></div>
+<div class="page-subtitle">// inserisci i risultati e calcola la classifica</div>
+
+<!-- INSERIMENTO RISULTATI -->
+<div class="card">
+  <div class="card-header">📝 Inserisci Risultati</div>
+  <form method="POST">
+    <input type="hidden" name="action" value="salva_risultati">
+    {% if not partite %}
+      <div style="color:#555; text-align:center; padding:1rem;">Nessuna partita.</div>
+    {% else %}
+    {% for p in partite %}
+    <div class="partita-row" style="justify-content:space-between; margin-bottom:0.6rem;">
+      <div class="vs-box">
+        <span class="squadra">{{ p.squadra_casa }}</span>
+        <span class="vs">VS</span>
+        <span class="squadra">{{ p.squadra_ospite }}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:0.75rem; color:#666; font-family:var(--font-mono);">Risultato:</span>
+        <select name="risultato_{{ p.id }}" style="background:var(--grigio2); border:1px solid var(--grigio3); color:var(--bianco); padding:0.4rem 0.8rem; border-radius:6px; font-family:var(--font-mono); font-weight:700; font-size:0.95rem; cursor:pointer;">
+          <option value="" {% if not p.risultato %}selected{% endif %}>—</option>
+          <option value="1" {% if p.risultato == '1' %}selected{% endif %} style="color:#00e676;">1</option>
+          <option value="X" {% if p.risultato == 'X' %}selected{% endif %} style="color:#ffd600;">X</option>
+          <option value="2" {% if p.risultato == '2' %}selected{% endif %} style="color:#64b5f6;">2</option>
+        </select>
+      </div>
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">💾 Salva Risultati</button>
+    {% endif %}
+  </form>
+</div>
+
+<!-- CALCOLA CLASSIFICA -->
+<div class="card" style="max-width:400px;">
+  <div class="card-header">🏆 Classifica Giornata</div>
+  <p style="font-size:0.85rem; color:#888; margin-bottom:1.2rem;">
+    Calcola i punti per ogni utente in base ai risultati inseriti sopra.
+    1 punto per ogni pronostico esatto.
+  </p>
+  <form method="POST">
+    <input type="hidden" name="action" value="calcola_classifica">
+    <button type="submit" class="btn btn-gold" onclick="return confirm('Calcolare/ricalcolare la classifica per questa giornata?')">
+      ⚡ Calcola Classifica
+    </button>
+  </form>
+</div>
+
+<!-- TABELLA PRONOSTICI UTENTI -->
+{% if utenti_pronostici %}
+<div class="card" style="overflow-x:auto;">
+  <div class="card-header">👥 Pronostici per Utente</div>
+  <table class="table" style="min-width:600px;">
+    <thead>
+      <tr>
+        <th>Utente</th>
+        {% for p in partite %}
+        <th style="text-align:center; font-size:0.75rem; max-width:100px;">
+          <span style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.squadra_casa }}</span>
+          <span style="color:#444;">vs</span>
+          <span style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.squadra_ospite }}</span>
+          {% if p.risultato %}
+            <span class="tag-{{ p.risultato }}" style="font-size:0.8rem;">✓ {{ p.risultato }}</span>
+          {% endif %}
+        </th>
+        {% endfor %}
+        <th style="text-align:center;">Punti</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in utenti_pronostici %}
+    <tr>
+      <td style="font-weight:600; color:var(--bianco); white-space:nowrap;">{{ u.username }}</td>
+      {% for p in partite %}
+      <td style="text-align:center;">
+        {% set pron = u.pronostici.get(p.id) %}
+        {% if pron %}
+          {% set corretto = p.risultato and pron == p.risultato %}
+          <span class="tag-{{ pron }}" style="{% if corretto %}background:rgba(0,230,118,0.1); padding:2px 6px; border-radius:4px;{% elif p.risultato %}opacity:0.4;{% endif %}">
+            {{ pron }}{% if corretto %} ✓{% endif %}
+          </span>
+        {% else %}
+          <span class="tag-none">—</span>
+        {% endif %}
+      </td>
+      {% endfor %}
+      <td style="text-align:center;">
+        {% if u.punti != '-' %}
+          <span class="punti-badge">{{ u.punti }} pt</span>
+        {% else %}
+          <span style="color:#444; font-family:var(--font-mono);">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

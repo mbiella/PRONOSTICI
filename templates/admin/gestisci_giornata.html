@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ giornata.nome }}{% endblock %}
+{% block content %}
+<div style="margin-bottom:1rem;"><a href="{{ url_for('admin_dashboard') }}" style="color:#555; font-size:0.8rem; font-family:var(--font-mono);">← Dashboard</a></div>
+<div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:0.3rem;">
+  <div class="page-title" style="margin:0;">{{ giornata.nome }}</div>
+  {% if giornata.chiusa %}
+    <span class="stato-badge stato-chiusa">Chiusa</span>
+  {% else %}
+    <span class="stato-badge stato-aperta">Aperta</span>
+  {% endif %}
+</div>
+<div class="page-subtitle">// 📅 {{ giornata.data }} — gestisci partite</div>
+
+<!-- AGGIUNGI PARTITA -->
+{% if not giornata.chiusa %}
+<div class="card" style="max-width:600px;">
+  <div class="card-header">+ Aggiungi Partita</div>
+  <form method="POST">
+    <input type="hidden" name="action" value="aggiungi_partita">
+    <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0.8rem; align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Squadra Casa</label>
+        <input class="form-input" type="text" name="casa" placeholder="Es: Juventus" required>
+      </div>
+      <div style="padding-bottom:0.15rem; color:#555; font-family:var(--font-mono); font-size:0.8rem; text-align:center;">VS</div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Squadra Ospite</label>
+        <input class="form-input" type="text" name="ospite" placeholder="Es: Milan" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">⚽ Aggiungi</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- LISTA PARTITE -->
+<div class="card">
+  <div class="card-header">⚽ Partite ({{ partite|length }})</div>
+  {% if not partite %}
+    <div style="color:#555; text-align:center; padding:1.5rem;">Nessuna partita aggiunta.</div>
+  {% else %}
+  {% for p in partite %}
+  <div class="partita-row" style="justify-content:space-between;">
+    <div class="vs-box">
+      <span class="squadra">{{ p.squadra_casa }}</span>
+      <span class="vs">VS</span>
+      <span class="squadra">{{ p.squadra_ospite }}</span>
+    </div>
+    {% if not giornata.chiusa %}
+    <form method="POST" style="margin:0;" onsubmit="return confirm('Eliminare questa partita?')">
+      <input type="hidden" name="action" value="elimina_partita">
+      <input type="hidden" name="partita_id" value="{{ p.id }}">
+      <button type="submit" class="btn btn-danger btn-sm">🗑 Elimina</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<!-- AZIONI GIORNATA -->
+<div class="card" style="max-width:600px;">
+  <div class="card-header">⚙️ Azioni Giornata</div>
+  <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+    <form method="POST">
+      <input type="hidden" name="action" value="toggle_chiudi">
+      {% if giornata.chiusa %}
+        <button type="submit" class="btn btn-primary">🔓 Riapri Giornata</button>
+      {% else %}
+        <button type="submit" class="btn btn-gold" onclick="return confirm('Chiudere la giornata? Gli utenti non potranno più modificare i pronostici.')">🔒 Chiudi Giornata</button>
+      {% endif %}
+    </form>
+    <a href="{{ url_for('risultati_giornata', gid=giornata.id) }}" class="btn btn-secondary">📊 Vai ai Risultati</a>
+    <form method="POST" onsubmit="return confirm('ATTENZIONE: eliminare la giornata e tutti i dati correlati?')">
+      <input type="hidden" name="action" value="elimina_giornata">
+      <button type="submit" class="btn btn-danger">🗑 Elimina Giornata</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

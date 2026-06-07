@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<div class="page-title">Dashboard <span class="accent">Admin</span></div>
+<div class="page-subtitle">// backoffice — gestione giornate e risultati</div>
+
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+  <div class="card" style="margin:0; text-align:center; padding:1.5rem;">
+    <div style="font-size:2.5rem; font-family:var(--font-display); color:var(--verde); letter-spacing:2px;">{{ giornate|length }}</div>
+    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#666; margin-top:0.3rem;">Giornate Totali</div>
+  </div>
+  <div class="card" style="margin:0; text-align:center; padding:1.5rem;">
+    <div style="font-size:2.5rem; font-family:var(--font-display); color:var(--oro); letter-spacing:2px;">{{ giornate|selectattr('chiusa','equalto',0)|list|length }}</div>
+    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#666; margin-top:0.3rem;">Giornate Aperte</div>
+  </div>
+  <div class="card" style="margin:0; text-align:center; padding:1.5rem;">
+    <div style="font-size:2.5rem; font-family:var(--font-display); color:#64b5f6; letter-spacing:2px;">{{ n_utenti }}</div>
+    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#666; margin-top:0.3rem;">Utenti Registrati</div>
+  </div>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+  <div style="font-family:var(--font-display); font-size:1.3rem; letter-spacing:2px; color:var(--bianco);">Giornate</div>
+  <a href="{{ url_for('nuova_giornata') }}" class="btn btn-primary">+ Nuova Giornata</a>
+</div>
+
+{% if not giornate %}
+  <div class="card" style="text-align:center; padding:2rem; color:#555;">
+    Nessuna giornata ancora. Creane una!
+  </div>
+{% else %}
+<div class="card" style="padding:0; overflow:hidden;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Data</th>
+        <th>Stato</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in giornate %}
+    <tr>
+      <td style="font-weight:600; color:var(--bianco);">{{ g.nome }}</td>
+      <td style="font-family:var(--font-mono); font-size:0.85rem; color:#888;">{{ g.data }}</td>
+      <td>
+        {% if g.chiusa %}
+          <span class="stato-badge stato-chiusa">Chiusa</span>
+        {% else %}
+          <span class="stato-badge stato-aperta">Aperta</span>
+        {% endif %}
+      </td>
+      <td>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <a href="{{ url_for('gestisci_giornata', gid=g.id) }}" class="btn btn-secondary btn-sm">✏️ Gestisci</a>
+          <a href="{{ url_for('risultati_giornata', gid=g.id) }}" class="btn btn-gold btn-sm">📊 Risultati</a>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
