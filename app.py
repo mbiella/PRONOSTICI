@@ -398,7 +398,44 @@ def elimina_utente(uid):
     conn.close()
     return redirect(url_for('admin_utenti'))
 
+
+@app.route('/admin/utenti/cambio_password', methods=['POST'])
+@admin_required
+def admin_cambio_password():
+    data = request.get_json()
+    uid = data.get('utente_id')
+    nuova = data.get('password', '').strip()
+    if not nuova:
+        return jsonify({'ok': False, 'msg': 'Password vuota'})
+    conn = get_db()
+    conn.execute("UPDATE utenti SET password=? WHERE id=? AND is_admin=0", (nuova, uid))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/profilo', methods=['GET', 'POST'])
+@login_required
+def profilo():
+    if request.method == 'POST':
+        attuale = request.form.get('password_attuale', '').strip()
+        nuova = request.form.get('password_nuova', '').strip()
+        conferma = request.form.get('password_conferma', '').strip()
+        conn = get_db()
+        utente = conn.execute("SELECT * FROM utenti WHERE id=?", (session['user_id'],)).fetchone()
+        if utente['password'] != attuale:
+            flash('Password attuale non corretta', 'error')
+        elif not nuova:
+            flash('La nuova password non può essere vuota', 'error')
+        elif nuova != conferma:
+            flash('Le password non coincidono', 'error')
+        else:
+            conn.execute("UPDATE utenti SET password=? WHERE id=?", (nuova, session['user_id']))
+            conn.commit()
+            flash('Password aggiornata con successo!', 'success')
+        conn.close()
+    return render_template('profilo.html')
+
 if __name__ == '__main__':
     init_db()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, port=5000)
