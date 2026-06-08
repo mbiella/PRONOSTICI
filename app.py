@@ -3,12 +3,31 @@ import sqlite3
 from datetime import datetime, date
 from functools import wraps
 import os
+import shutil
 
 app = Flask(__name__)
 app.secret_key = 'pronostici-secret-key-2024'
 app.jinja_env.globals['enumerate'] = enumerate
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'pronostici.db')
+BACKUP_DIR = os.path.join(os.path.dirname(__file__), 'backups')
+
+def backup_db():
+    """Crea un backup del DB all'avvio. Mantiene gli ultimi 7 backup."""
+    if not os.path.exists(DB_PATH):
+        return
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = os.path.join(BACKUP_DIR, f'pronostici_{timestamp}.db')
+    shutil.copy2(DB_PATH, backup_path)
+    # Mantieni solo gli ultimi 7 backup
+    backups = sorted([
+        os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+        if f.startswith('pronostici_') and f.endswith('.db')
+    ])
+    for vecchio in backups[:-7]:
+        os.remove(vecchio)
+    print(f'[Backup] Salvato: {backup_path}')
 
 # ─── DB INIT ───────────────────────────────────────────────────────────────────
 
@@ -33,8 +52,11 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             data TEXT NOT NULL,
-            chiusa INTEGER DEFAULT 0
+            chiusa INTEGER DEFAULT 0,
+            chiusura_automatica TEXT
         );
+        -- Migrazione: aggiungi colonna se non esiste
+        
 
         CREATE TABLE IF NOT EXISTS partite (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +89,12 @@ def init_db():
             FOREIGN KEY(giornata_id) REFERENCES giornate(id)
         );
     ''')
+    # Migrazione: aggiungi colonna chiusura_automatica se non esiste
+    try:
+        c.execute("ALTER TABLE giornate ADD COLUMN chiusura_automatica TEXT")
+        conn.commit()
+    except Exception:
+        pass  # colonna già esistente
     # Crea admin di default se non esiste
     c.execute("SELECT id FROM utenti WHERE username='admin'")
     if not c.fetchone():
@@ -75,7 +103,25 @@ def init_db():
     conn.commit()
     conn.close()
 
+def chiudi_giornate_scadute():
+    """Chiude automaticamente le giornate il cui orario di chiusura è passato."""
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    conn = get_db()
+    conn.execute("""
+        UPDATE giornate SET chiusa=1
+        WHERE chiusa=0
+        AND chiusura_automatica IS NOT NULL
+        AND chiusura_automatica != ''
+        AND chiusura_automatica <= ?
+    """, (now,))
+    conn.commit()
+    conn.close()
+
 # ─── AUTH ───────────────────────────────────────────────────────────────────────
+
+@app.before_request
+def controlla_chiusure():
+    chiudi_giornate_scadute()
 
 def login_required(f):
     @wraps(f)
@@ -247,7 +293,11 @@ def nuova_giornata():
         nome = request.form.get('nome','').strip()
         data_g = request.form.get('data','').strip()
         conn = get_db()
-        cur = conn.execute("INSERT INTO giornate(nome, data) VALUES(?,?)", (nome, data_g))
+        chiusura = request.form.get('chiusura_automatica','').strip()
+        chiusura_dt = None
+        if chiusura:
+            chiusura_dt = data_g + ' ' + chiusura
+        cur = conn.execute("INSERT INTO giornate(nome, data, chiusura_automatica) VALUES(?,?,?)", (nome, data_g, chiusura_dt))
         conn.commit()
         gid = cur.lastrowid
         conn.close()
@@ -279,6 +329,17 @@ def gestisci_giornata(gid):
             conn.execute("UPDATE giornate SET chiusa=? WHERE id=?", (stato, gid))
             conn.commit()
             giornata = conn.execute("SELECT * FROM giornate WHERE id=?", (gid,)).fetchone()
+        elif action == 'imposta_chiusura':
+            data_c = request.form.get('data_chiusura','').strip()
+            ora_c = request.form.get('ora_chiusura','').strip()
+            if data_c and ora_c:
+                chiusura_dt = data_c + ' ' + ora_c
+            else:
+                chiusura_dt = None
+            conn.execute("UPDATE giornate SET chiusura_automatica=? WHERE id=?", (chiusura_dt, gid))
+            conn.commit()
+            giornata = conn.execute("SELECT * FROM giornate WHERE id=?", (gid,)).fetchone()
+            flash('Chiusura automatica impostata!' if chiusura_dt else 'Chiusura automatica rimossa.', 'success')
         elif action == 'elimina_giornata':
             conn.execute("DELETE FROM pronostici WHERE partita_id IN (SELECT id FROM partite WHERE giornata_id=?)", (gid,))
             conn.execute("DELETE FROM partite WHERE giornata_id=?", (gid,))
@@ -436,7 +497,76 @@ def profilo():
         conn.close()
     return render_template('profilo.html')
 
+
+@app.route('/admin/backup')
+@admin_required
+def admin_backup():
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    files = sorted([
+        f for f in os.listdir(BACKUP_DIR)
+        if f.startswith('pronostici_') and f.endswith('.db')
+    ], reverse=True)
+    backups = []
+    for f in files:
+        path = os.path.join(BACKUP_DIR, f)
+        size = os.path.getsize(path)
+        size_str = f'{size/1024:.1f} KB' if size < 1024*1024 else f'{size/1024/1024:.2f} MB'
+        # Estrai data dal nome: pronostici_YYYYMMDD_HHMMSS.db
+        try:
+            ts = f.replace('pronostici_','').replace('.db','')
+            dt = datetime.strptime(ts, '%Y%m%d_%H%M%S').strftime('%d/%m/%Y %H:%M:%S')
+        except:
+            dt = f
+        backups.append({'nome': f, 'data': dt, 'size': size_str})
+    return render_template('admin/backup.html', backups=backups)
+
+@app.route('/admin/backup/crea', methods=['POST'])
+@admin_required
+def crea_backup():
+    backup_db()
+    flash('Backup creato con successo!', 'success')
+    return redirect(url_for('admin_backup'))
+
+@app.route('/admin/backup/scarica/<nome>')
+@admin_required
+def scarica_backup(nome):
+    from flask import send_from_directory
+    return send_from_directory(BACKUP_DIR, nome, as_attachment=True)
+
+@app.route('/admin/backup/ripristina/<nome>', methods=['POST'])
+@admin_required
+def ripristina_backup(nome):
+    src = os.path.join(BACKUP_DIR, nome)
+    if not os.path.exists(src):
+        flash('File di backup non trovato', 'error')
+        return redirect(url_for('admin_backup'))
+    # Prima fai un backup del DB attuale
+    backup_db()
+    shutil.copy2(src, DB_PATH)
+    flash(f'Database ripristinato da {nome}', 'success')
+    return redirect(url_for('admin_backup'))
+
+
+@app.route('/admin/utenti/crea', methods=['POST'])
+@admin_required
+def admin_crea_utente():
+    username = request.form.get('username','').strip()
+    password = request.form.get('password','').strip()
+    if not username or not password:
+        flash('Compila username e password', 'error')
+        return redirect(url_for('admin_utenti'))
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO utenti(username, password) VALUES(?,?)", (username, password))
+        conn.commit()
+        flash(f'Utente "{username}" creato con successo!', 'success')
+    except sqlite3.IntegrityError:
+        flash(f'Username "{username}" già in uso', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_utenti'))
+
 if __name__ == '__main__':
+    backup_db()
     init_db()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, port=5000)
