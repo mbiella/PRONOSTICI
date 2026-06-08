@@ -566,8 +566,9 @@ def admin_crea_utente():
         conn.close()
     return redirect(url_for('admin_utenti'))
 
+backup_db()
+init_db()
+
 if __name__ == '__main__':
-    backup_db()
-    init_db()
-        port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
