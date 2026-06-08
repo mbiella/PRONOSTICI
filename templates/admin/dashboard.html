@@ -35,7 +35,6 @@
       <tr>
         <th>Nome</th>
         <th>Data</th>
-        <th>Chiusura Auto</th>
         <th>Stato</th>
         <th>Azioni</th>
       </tr>
@@ -45,14 +44,6 @@
     <tr>
       <td style="font-weight:600; color:var(--bianco);">{{ g.nome }}</td>
       <td style="font-family:var(--font-mono); font-size:0.85rem; color:#888;">{{ g.data }}</td>
-      <td style="font-family:var(--font-mono); font-size:0.8rem;">
-        {% if g.chiusura_automatica %}
-          <span style="color:var(--oro);">⏰ {{ g.chiusura_automatica[11:16] }}</span>
-          <span style="color:#555; font-size:0.7rem; display:block;">{{ g.chiusura_automatica[:10] }}</span>
-        {% else %}
-          <span style="color:#444;">—</span>
-        {% endif %}
-      </td>
       <td>
         {% if g.chiusa %}
           <span class="stato-badge stato-chiusa">Chiusa</span>
