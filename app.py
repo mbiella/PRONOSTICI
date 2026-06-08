@@ -33,8 +33,11 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             data TEXT NOT NULL,
-            chiusa INTEGER DEFAULT 0
+            chiusa INTEGER DEFAULT 0,
+            chiusura_automatica TEXT
         );
+        -- Migrazione: aggiungi colonna se non esiste
+        
 
         CREATE TABLE IF NOT EXISTS partite (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +70,12 @@ def init_db():
             FOREIGN KEY(giornata_id) REFERENCES giornate(id)
         );
     ''')
+    # Migrazione: aggiungi colonna chiusura_automatica se non esiste
+    try:
+        c.execute("ALTER TABLE giornate ADD COLUMN chiusura_automatica TEXT")
+        conn.commit()
+    except Exception:
+        pass  # colonna già esistente
     # Crea admin di default se non esiste
     c.execute("SELECT id FROM utenti WHERE username='admin'")
     if not c.fetchone():
@@ -75,7 +84,25 @@ def init_db():
     conn.commit()
     conn.close()
 
+def chiudi_giornate_scadute():
+    """Chiude automaticamente le giornate il cui orario di chiusura è passato."""
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    conn = get_db()
+    conn.execute("""
+        UPDATE giornate SET chiusa=1
+        WHERE chiusa=0
+        AND chiusura_automatica IS NOT NULL
+        AND chiusura_automatica != ''
+        AND chiusura_automatica <= ?
+    """, (now,))
+    conn.commit()
+    conn.close()
+
 # ─── AUTH ───────────────────────────────────────────────────────────────────────
+
+@app.before_request
+def controlla_chiusure():
+    chiudi_giornate_scadute()
 
 def login_required(f):
     @wraps(f)
@@ -247,7 +274,11 @@ def nuova_giornata():
         nome = request.form.get('nome','').strip()
         data_g = request.form.get('data','').strip()
         conn = get_db()
-        cur = conn.execute("INSERT INTO giornate(nome, data) VALUES(?,?)", (nome, data_g))
+        chiusura = request.form.get('chiusura_automatica','').strip()
+        chiusura_dt = None
+        if chiusura:
+            chiusura_dt = data_g + ' ' + chiusura
+        cur = conn.execute("INSERT INTO giornate(nome, data, chiusura_automatica) VALUES(?,?,?)", (nome, data_g, chiusura_dt))
         conn.commit()
         gid = cur.lastrowid
         conn.close()
@@ -279,6 +310,17 @@ def gestisci_giornata(gid):
             conn.execute("UPDATE giornate SET chiusa=? WHERE id=?", (stato, gid))
             conn.commit()
             giornata = conn.execute("SELECT * FROM giornate WHERE id=?", (gid,)).fetchone()
+        elif action == 'imposta_chiusura':
+            data_c = request.form.get('data_chiusura','').strip()
+            ora_c = request.form.get('ora_chiusura','').strip()
+            if data_c and ora_c:
+                chiusura_dt = data_c + ' ' + ora_c
+            else:
+                chiusura_dt = None
+            conn.execute("UPDATE giornate SET chiusura_automatica=? WHERE id=?", (chiusura_dt, gid))
+            conn.commit()
+            giornata = conn.execute("SELECT * FROM giornate WHERE id=?", (gid,)).fetchone()
+            flash('Chiusura automatica impostata!' if chiusura_dt else 'Chiusura automatica rimossa.', 'success')
         elif action == 'elimina_giornata':
             conn.execute("DELETE FROM pronostici WHERE partita_id IN (SELECT id FROM partite WHERE giornata_id=?)", (gid,))
             conn.execute("DELETE FROM partite WHERE giornata_id=?", (gid,))
