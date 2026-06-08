@@ -4,6 +4,30 @@
 <div class="page-title">👥 <span class="accent">Utenti</span></div>
 <div class="page-subtitle">// utenti registrati sulla piattaforma</div>
 
+<!-- CREA NUOVO UTENTE -->
+<div class="card" style="max-width:500px;">
+  <div class="card-header">+ Crea Nuovo Utente</div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="POST" action="{{ url_for('admin_crea_utente') }}">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Username</label>
+        <input class="form-input" type="text" name="username" placeholder="Es: mario_rossi" required>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="text" name="password" placeholder="Es: calcio2026" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">✅ Crea Utente</button>
+  </form>
+</div>
+
+<!-- LISTA UTENTI -->
 <div class="card" style="padding:0; overflow:hidden;">
   {% if not utenti %}
     <div style="text-align:center; color:#555; padding:2rem;">Nessun utente registrato.</div>
@@ -20,19 +44,17 @@
     </thead>
     <tbody>
     {% for u in utenti %}
-    <tr id="row-{{ u.id }}">
+    <tr>
       <td style="color:#555; font-family:var(--font-mono); font-size:0.85rem;">{{ u.id }}</td>
       <td style="font-weight:600; color:var(--bianco);">{{ u.username }}</td>
       <td>
-        <!-- Vista normale -->
         <div id="pwd-view-{{ u.id }}" style="display:flex; align-items:center; gap:0.4rem;">
           <span id="pwd-mask-{{ u.id }}" style="font-family:var(--font-mono); font-size:0.85rem; color:#888; letter-spacing:2px;">••••••••</span>
           <span id="pwd-text-{{ u.id }}" style="display:none; font-family:var(--font-mono); font-size:0.85rem; color:var(--oro);">{{ u.password }}</span>
           <button onclick="togglePwd({{ u.id }})" style="background:none; border:none; cursor:pointer; color:#555; font-size:0.8rem;" title="Mostra/nascondi">👁</button>
           <button onclick="showEdit({{ u.id }})" style="background:none; border:none; cursor:pointer; color:#555; font-size:0.8rem;" title="Modifica password">✏️</button>
         </div>
-        <!-- Form modifica -->
-        <div id="pwd-edit-{{ u.id }}" style="display:none; display:none; align-items:center; gap:0.4rem;">
+        <div id="pwd-edit-{{ u.id }}" style="display:none; align-items:center; gap:0.4rem;">
           <input type="text" id="pwd-input-{{ u.id }}" placeholder="Nuova password"
                  style="background:var(--grigio2); border:1px solid var(--verde); border-radius:5px; padding:0.3rem 0.6rem; color:var(--bianco); font-family:var(--font-mono); font-size:0.85rem; width:140px;">
           <button onclick="savePassword({{ u.id }})" class="btn btn-primary btn-sm">✓</button>
@@ -84,7 +106,6 @@ async function savePassword(id) {
   const input = document.getElementById('pwd-input-' + id);
   const nuova = input.value.trim();
   if (!nuova) { input.focus(); return; }
-
   const res = await fetch('/admin/utenti/cambio_password', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -92,7 +113,6 @@ async function savePassword(id) {
   });
   const data = await res.json();
   if (data.ok) {
-    // Aggiorna la visualizzazione senza ricaricare
     document.getElementById('pwd-text-' + id).textContent = nuova;
     document.getElementById('pwd-mask-' + id).style.display = 'inline';
     document.getElementById('pwd-text-' + id).style.display = 'none';

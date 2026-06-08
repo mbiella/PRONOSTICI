@@ -9,11 +9,16 @@
   <form method="POST">
     <div class="form-group">
       <label class="form-label">Nome Giornata</label>
-      <input class="form-input" type="text" name="nome" placeholder="Es: Giornata 1 — Serie A" required autofocus>
+      <input class="form-input" type="text" name="nome" placeholder="Es: Giornata 1 — Mondiali 2026" required autofocus>
     </div>
     <div class="form-group">
       <label class="form-label">Data</label>
       <input class="form-input" type="date" name="data" value="{{ oggi }}" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Chiusura automatica — orario <span style="color:#555; font-weight:400; text-transform:none; letter-spacing:0;">(opzionale)</span></label>
+      <input class="form-input" type="time" name="chiusura_automatica" placeholder="Es: 20:45">
+      <div style="font-size:0.75rem; color:#555; margin-top:0.4rem;">Se impostato, la giornata si chiuderà automaticamente alla data selezionata a quell'orario.</div>
     </div>
     <div style="display:flex; gap:0.8rem; margin-top:1.5rem;">
       <button type="submit" class="btn btn-primary">✅ Crea Giornata</button>

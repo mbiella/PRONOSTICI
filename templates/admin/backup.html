@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Backup DB{% endblock %}
+{% block content %}
+<div class="page-title">💾 <span class="accent">Backup</span></div>
+<div class="page-subtitle">// backup automatici del database — ultimi 7 salvati</div>
+
+<div style="display:flex; gap:1rem; margin-bottom:2rem; flex-wrap:wrap;">
+  <form method="POST" action="{{ url_for('crea_backup') }}">
+    <button type="submit" class="btn btn-primary">💾 Crea Backup Ora</button>
+  </form>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  <div class="card-header" style="padding: 1rem 1.5rem;">📁 Backup Disponibili</div>
+  {% if not backups %}
+    <div style="text-align:center; color:#555; padding:2rem;">Nessun backup disponibile. Avvia l'app per crearne uno.</div>
+  {% else %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Data e Ora</th>
+        <th>Dimensione</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for b in backups %}
+    <tr>
+      <td style="font-family:var(--font-mono); font-size:0.8rem; color:#888;">{{ b.nome }}</td>
+      <td style="font-family:var(--font-mono); font-size:0.85rem; color:var(--bianco);">{{ b.data }}</td>
+      <td style="font-family:var(--font-mono); font-size:0.8rem; color:#888;">{{ b.size }}</td>
+      <td style="display:flex; gap:0.5rem;">
+        <a href="{{ url_for('scarica_backup', nome=b.nome) }}" class="btn btn-secondary btn-sm">⬇ Scarica</a>
+        <form method="POST" action="{{ url_for('ripristina_backup', nome=b.nome) }}"
+              onsubmit="return confirm('ATTENZIONE: il DB attuale verrà sovrascritto con questo backup. Continuare?')">
+          <button type="submit" class="btn btn-danger btn-sm">↩ Ripristina</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div style="font-size:0.8rem; color:#444; margin-top:1rem; font-family:var(--font-mono);">
+  ℹ️ Un backup viene creato automaticamente ad ogni avvio dell'app. Vengono mantenuti gli ultimi 7.
+</div>
+{% endblock %}
