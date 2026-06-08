@@ -286,6 +286,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
       <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
       <a href="{{ url_for('admin_classifica') }}">Classifica</a>
       <a href="{{ url_for('admin_utenti') }}">Utenti</a>
+      <a href="{{ url_for('admin_backup') }}">💾 Backup</a>
     {% endif %}
     <span class="nav-user">
       {{ session.get('username') }}
